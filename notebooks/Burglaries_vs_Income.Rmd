@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#install.packages("sf")
+#install.packages("leaflet")
+library(sf)
+library(tidyverse)
+```
+
+PART 1--------------------------------------------------------------------------
+
+```{r}
+burglaries <- read_csv("../data/burglaries_2023.csv")
+burglaries
+```
+
+```{r}
+census <- read_csv("../data/census.csv")
+census
+```
+
+```{r}
+dc_shape <- st_read('../data/DC/DC.shp')
+```
+
+```{r}
+dc_shape |> 
+  ggplot() +
+  geom_sf()
+```
+
+```{r}
+dc_shape |> 
+  ggplot() +
+  geom_sf() +
+  geom_point(
+    data = burglaries |> drop_na(latitude),
+    aes(x = longitude, y = latitude),
+    size = 0.1
+    )
+```
+
+```{r}
+burglaries_dc <- st_as_sf(
+  burglaries |> drop_na(latitude),
+  coords = c('longitude', 'latitude'),
+  crs = st_crs(dc_shape)
+)
+```
+
+```{r}
+dc_shape |> 
+  ggplot() +
+  geom_sf() +
+  geom_sf(data = burglaries_dc, size = 0.1)
+```
+
+```{r}
+burgs_dc <- st_join(burglaries_dc, dc_shape, join = st_within, left=FALSE)
+burgs_dc
+```
+
+PART 2--------------------------------------------------------------------------
+
+```{r}
+census$NAME <- gsub(", Davidson County, Tennessee", "", census$NAME)
+census$NAME <- gsub("^Census Tract ", "", census$NAME)
+```
+
+
+```{r}
+burgs_dc_census <- merge(burgs_dc, census, by='NAME')
+burgs_dc_census
+```
+
+```{r}
+grouped_burgs <- burgs_dc_census |> 
+  filter(victim_number==1) |> 
+  group_by(NAME)
+```
+
+```{r}
+grouped_burgs |> 
+  count(NAME, population) |> 
+  arrange(desc(n))
+```
+
+Census Tract 160 had the highest burglaries
+
+```{r}
+grouped_burgs |> 
+  filter(offense_description == 'BURGLARY- AGGRAVATED')
+```
+
+```{r}
+burg_poisson <- glm(burglaries ~ median_income,
+                    family=poisson,
+                    data=)
+```
+
